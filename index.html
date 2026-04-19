@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FF Events & Updates</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#040d1f">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --bg: #040d1f;
+            --card-bg: #071932;
+            --accent: #4a78c2;
+            --green: #00e676;
+            --green-dark: #00c853;
+            --red: #ff5252;
+            --red-dark: #d50000;
+            --text: #e0e8f2;
+            --muted: #9cb8d6;
+            --radius: 16px;
+            --border: rgba(255, 255, 255, 0.09);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', 'Cairo', sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 10px;
+            overflow-x: hidden;
+        }
+
+        .header-container { text-align: center; margin-bottom: 30px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        .main-title {
+            font-size: clamp(1.1rem, 3.5vw, 1.4rem);
+            font-weight: 900; margin-bottom: 5px;
+            background: linear-gradient(to right, #e0e8f2, var(--green), #e0e8f2);
+            background-size: 200% auto; -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; text-transform: uppercase;
+            letter-spacing: 2px; animation: titleShine 3s linear infinite;
+        }
+        @keyframes titleShine { to { background-position: 200% center; } }
+        
+        .sub-title {
+            font-size: 0.85rem; font-weight: 700; color: #FFD700; letter-spacing: 1px;
+            animation: glowEffect 1.5s ease-in-out infinite alternate; text-transform: uppercase;
+            padding: 5px; margin: 0 auto; display: inline-block;
+        }
+        @keyframes glowEffect {
+            from { text-shadow: 0 0 5px #FFD700, 0 0 10px #FFD700; }
+            to { text-shadow: 0 0 15px #FFD700, 0 0 25px #FF8C00; }
+        }
+
+        .lang-toggle-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
+            padding: 8px 16px; margin-top: 15px; cursor: pointer; color: var(--accent); font-weight: 700;
+            font-size: 0.85rem; transition: all 0.3s;
+        }
+        .lang-toggle-btn:hover { border-color: var(--accent); background: rgba(74, 120, 194, 0.1); transform: translateY(-2px); }
+
+        .fit-container { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .fit-text { white-space: nowrap; display: inline-block; transform-origin: center; }
+        .hidden { display: none !important; }
+
+        .region-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            width: 100%;
+            max-width: 900px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 600px) {
+            .region-grid { gap: 6px; }
+        }
+        @media (max-width: 400px) {
+            .region-grid { gap: 4px; }
+        }
+
+        .btn-main {
+            width: 100%; padding: 15px 12px; border-radius: 12px; border: none;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3); position: relative; overflow: hidden;
+            font-size: 0.95rem; white-space: nowrap; text-decoration: none;
+        }
+        .btn-main svg { width: 20px !important; height: 20px !important; min-width: 20px !important; min-height: 20px !important; flex-shrink: 0 !important; display: block; }
+        .btn-main::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: rgba(255,255,255,0.1); transform: rotate(45deg) translateY(-100%); transition: 0.5s;
+        }
+        .btn-main:hover::after { transform: rotate(45deg) translateY(100%); }
+        .btn-main:hover { transform: translateY(-3px); }
+        
+        .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; }
+        .btn-outline:hover { background: var(--accent); border-color: var(--accent); }
+
+        .region-btn {
+            padding: 10px 2px !important;
+            font-size: clamp(10px, 3vw, 15px) !important;
+            min-height: 44px;
+        }
+        @media (max-width: 400px) {
+            .region-btn { padding: 8px 1px !important; font-size: 10px !important; min-height: 38px; }
+        }
+
+        .btn-social { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; justify-content: flex-start; padding: 15px 20px; }
+        .btn-social.insta:hover { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); border-color: transparent; }
+        .btn-social.tele:hover { background: #0088cc; border-color: transparent; }
+        .btn-social.linktree:hover { background: #43E660; color: #000; border-color: transparent; }
+
+        .card {
+            background: linear-gradient(145deg, var(--card-bg), #051329);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: clamp(15px, 4vw, 30px); 
+            width: 100%; max-width: 900px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); position: relative;
+            animation: fadeIn 0.5s ease;
+            margin-bottom: 25px;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-title { font-size: 1.2rem; font-weight: 800; color: #fff; margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
+        .nav-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; width: 100%; }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 1200px; margin-bottom: 20px; gap: 10px; flex-wrap: wrap; }
+
+        .section-title { font-size: 20px; margin: 30px 0 15px 0; color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: 10px; font-weight: 800; text-transform: uppercase; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        
+        .data-card { background-color: #1e293b; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .data-card img { width: 100%; height: auto; max-height: 350px; object-fit: contain; background-color: #0f172a; border-bottom: 1px solid var(--border); display: block; cursor: pointer; transition: opacity 0.3s; }
+        .data-card img:hover { opacity: 0.85; }
+        
+        .data-card-header { padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #1e293b; border-bottom: 1px solid var(--border); }
+        .data-card-header:hover { background: #334155; }
+        .data-card-title { font-size: 15px; color: #f8fafc; font-weight: bold; margin: 0; line-height: 1.4; flex: 1; }
+        .toggle-icon { color: var(--muted); font-size: 14px; transition: transform 0.3s; margin-inline-start: 10px; }
+        .data-card-header.open .toggle-icon { transform: rotate(180deg); }
+        
+        .data-card-details { padding: 15px; display: none; flex-direction: column; }
+        .data-card-details.open { display: flex; }
+        
+        .data-card-info p { margin-bottom: 8px; font-size: 13px; color: var(--muted); line-height: 1.5; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+        .data-card-info p strong { color: #f8fafc; }
+        .data-card-info a { color: var(--accent); text-decoration: none; word-break: break-all; }
+        .data-card-info a:hover { text-decoration: underline; }
+        
+        .details-box { background-color: #0f172a; padding: 15px; border-radius: 8px; margin: 8px 0 15px 0; font-size: 13px; color: #e2e8f0; white-space: pre-wrap; max-height: 250px; overflow-y: auto; border: 1px solid var(--border); line-height: 1.6; }
+        
+        #loader { display: none; text-align: center; margin: 40px 0; width: 100%; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: var(--green); animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+        #loader span { font-size: 16px; color: var(--muted); font-weight: bold; letter-spacing: 1px; text-transform: uppercase; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1 class="main-title fit-container"><span class="fit-text" data-en="FF Events & Updates" data-ar="أحداث وتحديثات فري فاير">FF Events & Updates</span></h1>
+        <div class="sub-title" data-en="Made By King of Games" data-ar="تطوير King of Games">Made By King of Games</div>
+        <div id="langToggleBtn" class="lang-toggle-btn" onclick="switchLanguage()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+            <span class="fit-text" data-en="ARABIC" data-ar="ENGLISH">ARABIC</span>
+        </div>
+    </div>
+
+    <div id="mainView" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div class="region-grid" id="regionGrid"></div>
+
+        <div class="card">
+            <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                <span data-en="Other Tools" data-ar="أدوات أخرى">Other Tools</span>
+            </div>
+            <div class="nav-grid">
+                <a href="https://kingofgames02.github.io/Free-Fire-Items-Library/" target="_blank" class="btn-main btn-outline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span data-en="Free Fire Items Library" data-ar="مكتبة عناصر فري فاير">Free Fire Items Library</span>
+                </a>
+                <a href="https://kingofgames02.github.io/FFWM-app/?lang=en" target="_blank" class="btn-main btn-outline">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    <span data-en="Wishlist Manager" data-ar="مدير قائمة الأمنيات">Wishlist Manager</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                <span data-en="Follow Me" data-ar="تابعني">Follow Me</span>
+            </div>
+            <div class="nav-grid">
+                <a href="https://www.instagram.com/_kingofgames02" target="_blank" class="btn-main btn-social insta">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                    Instagram
+                </a>
+                <a href="https://t.me/FF_MENA_Updates" target="_blank" class="btn-main btn-social tele">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    Telegram
+                </a>
+                <a href="https://linktr.ee/KingofGames02" target="_blank" class="btn-main btn-social linktree">
+                    <svg fill="white" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Linktree</title><path d="m13.73635 5.85251 4.00467-4.11665 2.3248 2.3808-4.20064 4.00466h5.9085v3.30473h-5.9365l4.22865 4.10766-2.3248 2.3338L12.0005 12.099l-5.74052 5.76852-2.3248-2.3248 4.22864-4.10766h-5.9375V8.12132h5.9085L3.93417 4.11666l2.3248-2.3808 4.00468 4.11665V0h3.4727zm-3.4727 10.30614h3.4727V24h-3.4727z"/></svg>
+                    Linktree
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="regionView" class="hidden" style="width: 100%; max-width: 1200px;">
+        <div class="top-bar">
+            <button class="btn-main btn-outline" style="width: auto; padding: 10px 20px;" onclick="goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                <span id="txtBack">BACK</span>
+            </button>
+            <button id="globalSwitchBtn" class="btn-main btn-outline hidden" style="width: auto; padding: 10px 20px;" onclick="toggleGlobalLang()">
+            </button>
+        </div>
+
+        <div id="loader">
+            <div class="spinner"></div>
+            <span id="txtLoader">Loading Data...</span>
+        </div>
+
+        <div id="contentArea" class="hidden">
+            <div class="section-title" id="splashSectionTitle">Splash Banners</div>
+            <div class="cards-grid" id="splashGrid"></div>
+
+            <div class="section-title" id="newsSectionTitle">Announcements & News</div>
+            <div class="cards-grid" id="newsGrid"></div>
+        </div>
+    </div>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').catch(error => {
+                console.log('ServiceWorker registration failed: ', error);
+            });
+        });
+    }
+
+    const API_BASE = "https://ff-events-eta.vercel.app/api/splash";
+    const regions = ['PK', 'IND', 'BR', 'ME', 'NA', 'VN', 'ID', 'SG', 'BD', 'TW', 'TH', 'CIS', 'EU', 'SAC', 'US'];
+    
+    const regionLangs = {
+        'ME': ['en', 'ar', 'fr'],
+        'NA': ['en', 'es'],
+        'US': ['en'],
+        'BR': ['pt'],
+        'IND': ['en', 'hi'],
+        'BD': ['en', 'bn'],
+        'EU': ['en', 'tr'],
+        'PK': ['en'],
+        'VN': ['vi'],
+        'ID': ['id'],
+        'SG': ['en'],
+        'TW': ['zh-tw'],
+        'TH': ['th'],
+        'CIS': ['ru'],
+        'SAC': ['es']
+    };
+
+    const cache = {}; 
+    let currentRegion = null;
+    let currentGlobalLangIndex = 0;
+    
+    const placeholderImageEn = "https://i.ibb.co/XZGm5Z0h/Coming-Soon-en.png";
+    const placeholderImageAr = "https://i.ibb.co/8DfkBqDr/Coming-Soon-ar.png";
+    let currentLang = 'en';
+
+    const t = {
+        splash: { en: "Splash Banners", ar: "صور البداية (Splash)" },
+        news: { en: "Announcements & News", ar: "الإعلانات والأخبار" },
+        start: { en: "Start:", ar: "البداية:" },
+        end: { en: "End:", ar: "النهاية:" },
+        details: { en: "Details:", ar: "التفاصيل:" },
+        link: { en: "Link:", ar: "الرابط:" },
+        redirect: { en: "Redirect:", ar: "رابط التحويل:" },
+        bannerUrl: { en: "Banner URL:", ar: "رابط الصورة:" },
+        switchAll: { en: "Switch All Banners:", ar: "تبديل لغة كل البنرات:" },
+        openLink: { en: "Open Link", ar: "فتح الرابط" },
+        openImg: { en: "Open Image", ar: "فتح الصورة" },
+        back: { en: "BACK", ar: "رجوع" },
+        loading: { en: "Loading Data...", ar: "جاري تحميل البيانات..." }
+    };
+    const _t = (key) => t[key][currentLang];
+
+    window.onload = () => {
+        detectLanguage();
+        applyTranslations();
+        const grid = document.getElementById('regionGrid');
+        regions.forEach(region => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-main btn-outline region-btn';
+            btn.textContent = region;
+            btn.onclick = () => selectRegion(region);
+            grid.appendChild(btn);
+        });
+
+        regions.forEach(r => {
+            regionLangs[r].forEach(l => {
+                fetchApi(r, l);
+            });
+        });
+    };
+
+    function detectLanguage() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('lang') === 'ar') {
+            currentLang = 'ar';
+            document.documentElement.dir = 'rtl';
+            document.documentElement.lang = 'ar';
+        } else {
+            currentLang = 'en';
+            document.documentElement.dir = 'ltr';
+            document.documentElement.lang = 'en';
+        }
+    }
+
+    function applyTranslations() {
+        document.querySelectorAll('[data-en]').forEach(el => {
+            el.innerHTML = currentLang === 'ar' ? el.getAttribute('data-ar') : el.getAttribute('data-en');
+        });
+        document.getElementById('txtBack').innerText = _t('back');
+        document.getElementById('txtLoader').innerText = _t('loading');
+        document.getElementById('splashSectionTitle').innerText = _t('splash');
+        document.getElementById('newsSectionTitle').innerText = _t('news');
+    }
+
+    function switchLanguage() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (currentLang === 'en') {
+            urlParams.set('lang', 'ar');
+        } else {
+            urlParams.set('lang', 'en');
+        }
+        window.location.search = urlParams.toString();
+    }
+
+    function goBack() {
+        document.getElementById('regionView').classList.add('hidden');
+        document.getElementById('mainView').classList.remove('hidden');
+        document.getElementById('langToggleBtn').classList.remove('hidden');
+        currentRegion = null;
+    }
+
+    function fetchApi(region, lang) {
+        if (!cache[region]) cache[region] = {};
+        if (cache[region][lang]) return cache[region][lang];
+        
+        const promise = fetch(`${API_BASE}/${region}?lang=${lang}`)
+            .then(res => res.json())
+            .catch(err => null);
+            
+        cache[region][lang] = promise;
+        return promise;
+    }
+
+    function formatTimestamp(ts) {
+        if (!ts || ts === 0) return "N/A";
+        const date = new Date(ts * 1000);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = date.toLocaleString('en-US', { month: 'short' });
+        const year = date.getFullYear();
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `\u200E${day} ${month} ${year} ${String(hours).padStart(2, '0')}:${minutes} ${ampm}\u200E`;
+    }
+
+    function isValidUrl(str) {
+        if (!str) return false;
+        return String(str).trim().startsWith('http://') || String(str).trim().startsWith('https://');
+    }
+
+    function makeLinkIfUrl(text) {
+        if (isValidUrl(text)) {
+            return `<a href="${text.trim()}" target="_blank">${text.trim()}</a>`;
+        }
+        return text;
+    }
+
+    function formatFreeFireText(text) {
+        if (!text) return "";
+        let formatted = String(text).replace(/\[([A-Fa-f0-9]{6})\]([\s\S]*?)\[-\]/g, '<span style="color: #$1; font-weight: bold;">$2</span>');
+        return formatted;
+    }
+
+    function fixImageUrl(url) {
+        if (!url) return "";
+        return url.trim().replace(/\.ff_extend$/i, '.jpg');
+    }
+
+    function toggleCard(element) {
+        const card = element.closest('.data-card');
+        const details = card.querySelector('.data-card-details');
+        const header = card.querySelector('.data-card-header');
+        if(details) details.classList.toggle('open');
+        if(header) header.classList.toggle('open');
+    }
+
+    async function selectRegion(region) {
+        currentRegion = region;
+        currentGlobalLangIndex = 0;
+        
+        document.getElementById('mainView').classList.add('hidden');
+        document.getElementById('langToggleBtn').classList.add('hidden');
+        document.getElementById('regionView').classList.remove('hidden');
+        document.getElementById('contentArea').classList.add('hidden');
+        document.getElementById('loader').style.display = 'block';
+
+        const langs = regionLangs[region];
+        await Promise.all(langs.map(l => fetchApi(region, l)));
+
+        const globalBtn = document.getElementById('globalSwitchBtn');
+        if (langs.length > 1) {
+            globalBtn.classList.remove('hidden');
+            updateGlobalButtonText();
+        } else {
+            globalBtn.classList.add('hidden');
+        }
+
+        document.getElementById('loader').style.display = 'none';
+        await renderAllCards(langs[0]);
+        document.getElementById('contentArea').classList.remove('hidden');
+    }
+
+    function updateGlobalButtonText() {
+        const langs = regionLangs[currentRegion];
+        const nextLang = langs[(currentGlobalLangIndex + 1) % langs.length].toUpperCase();
+        document.getElementById('globalSwitchBtn').innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px; height:20px; margin-inline-end:8px;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span class="fit-text">${_t('switchAll')} ${nextLang}</span>
+        `;
+    }
+
+    function toggleGlobalLang() {
+        const langs = regionLangs[currentRegion];
+        if (langs.length <= 1) return;
+        currentGlobalLangIndex = (currentGlobalLangIndex + 1) % langs.length;
+        updateGlobalButtonText();
+        renderAllCards(langs[currentGlobalLangIndex]);
+    }
+
+    async function renderAllCards(targetLang) {
+        const data = await cache[currentRegion][targetLang];
+        
+        const splashGrid = document.getElementById('splashGrid');
+        const newsGrid = document.getElementById('newsGrid');
+        const splashTitle = document.getElementById('splashSectionTitle');
+        const newsTitle = document.getElementById('newsSectionTitle');
+
+        splashGrid.innerHTML = '';
+        newsGrid.innerHTML = '';
+
+        if (!data || !data.success) {
+            splashTitle.style.display = 'none';
+            newsTitle.style.display = 'none';
+            return;
+        }
+
+        if (data.splash_data && data.splash_data.length > 0) {
+            splashTitle.style.display = 'block';
+            data.splash_data.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.id = `splash-card-${index}`;
+                card.innerHTML = buildSplashInner(item, index, targetLang);
+                splashGrid.appendChild(card);
+            });
+        } else {
+            splashTitle.style.display = 'none';
+        }
+
+        if (data.news_data && data.news_data.length > 0) {
+            newsTitle.style.display = 'block';
+            data.news_data.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = 'data-card';
+                card.id = `news-card-${index}`;
+                card.innerHTML = buildNewsInner(item, index, targetLang);
+                newsGrid.appendChild(card);
+            });
+        } else {
+            newsTitle.style.display = 'none';
+        }
+    }
+
+    function buildSplashInner(item, index, currentLangCode) {
+        let redirectHtml = '';
+        if (isValidUrl(item.sub_go_pos)) {
+            redirectHtml = `<p><strong>${_t('redirect')}</strong> <a href="${item.sub_go_pos.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+        }
+
+        const fixedUrl = fixImageUrl(item.image_url);
+        const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
+        
+        let imgTag = `<img src="${fixedUrl}" alt="Splash" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
+        if (!fixedUrl) {
+            imgTag = `<img src="${currentPlaceholder}" onclick="toggleCard(this)" alt="Available Soon">`;
+        }
+
+        let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a></p>` : '';
+
+        return `
+            ${imgTag}
+            <div class="data-card-header" onclick="toggleCard(this)">
+                <p class="data-card-title">${item.name || 'N/A'}</p>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="data-card-details">
+                <div class="data-card-info">
+                    <p><strong>${_t('start')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.start_time)}</span></p>
+                    <p><strong>${_t('end')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.end_time)}</span></p>
+                    ${bannerUrlHtml}
+                    ${redirectHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    function buildNewsInner(item, index, currentLangCode) {
+        let detailsHtml = '';
+        let linkHtml = '';
+
+        if (item.desc && String(item.desc).trim() !== "" && String(item.desc).trim() !== "0") {
+            if (isValidUrl(item.desc)) {
+                linkHtml += `<p><strong>${_t('link')}</strong> <a href="${item.desc.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+            } else {
+                let formattedDesc = formatFreeFireText(item.desc);
+                detailsHtml = `<p><strong>${_t('details')}</strong></p><div class="details-box">${makeLinkIfUrl(formattedDesc)}</div>`;
+            }
+        }
+
+        if (isValidUrl(item.link_url) && String(item.link_url).trim() !== String(item.desc).trim()) {
+            linkHtml += `<p><strong>${_t('link')}</strong> <a href="${item.link_url.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+        }
+
+        if (isValidUrl(item.sub_go_pos) && String(item.sub_go_pos).trim() !== String(item.desc).trim() && String(item.sub_go_pos).trim() !== String(item.link_url).trim()) {
+            linkHtml += `<p><strong>${_t('redirect')}</strong> <a href="${item.sub_go_pos.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+        }
+
+        const fixedUrl = fixImageUrl(item.image_url);
+        const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
+
+        let imgTag = `<img src="${fixedUrl}" alt="News" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
+        if (!fixedUrl) {
+            imgTag = `<img src="${currentPlaceholder}" onclick="toggleCard(this)" alt="Available Soon">`;
+        }
+
+        let bannerUrlHtml = fixedUrl ? `<p style="margin-top: 8px;"><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a></p>` : '';
+        let formattedTitle = formatFreeFireText(item.title || 'N/A');
+
+        return `
+            ${imgTag}
+            <div class="data-card-header" onclick="toggleCard(this)">
+                <p class="data-card-title">${formattedTitle}</p>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="data-card-details">
+                <div class="data-card-info">
+                    <p><strong>${_t('start')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.start_time)}</span></p>
+                    <p><strong>${_t('end')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.end_time)}</span></p>
+                    ${detailsHtml}
+                    ${linkHtml}
+                    ${bannerUrlHtml}
+                </div>
+            </div>
+        `;
+    }
+</script>
+</body>
+</html>

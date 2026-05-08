@@ -310,12 +310,6 @@
             btn.onclick = () => selectRegion(region);
             grid.appendChild(btn);
         });
-
-        regions.forEach(r => {
-            regionLangs[r].forEach(l => {
-                fetchApi(r, l);
-            });
-        });
     };
 
     function detectLanguage() {

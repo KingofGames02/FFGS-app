@@ -108,9 +108,32 @@
         .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; }
         .btn-outline:hover { background: var(--accent); border-color: var(--accent); }
 
-        .btn-copy { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: #fff; border-radius: 6px; padding: 3px 8px; cursor: pointer; margin-inline-start: 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; transition: all 0.2s; font-weight: 600; }
-        .btn-copy:hover { background: rgba(255, 255, 255, 0.15); }
-        .btn-copy.copied { background: var(--green); color: var(--bg); border-color: var(--green); }
+        .btn-mini-action {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px;
+            cursor: pointer;
+            margin-inline-start: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            vertical-align: middle;
+        }
+        .btn-mini-action:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        .btn-mini-action.success {
+            background: var(--green);
+            color: var(--bg);
+            border-color: var(--green);
+        }
+        .btn-mini-action svg {
+            width: 14px;
+            height: 14px;
+        }
 
         .region-btn {
             padding: 10px 2px !important;
@@ -252,7 +275,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js?v=1.2').catch(error => {
+            navigator.serviceWorker.register('sw.js?v=1.3').catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
         });
@@ -302,7 +325,7 @@
         back: { en: "BACK", ar: "رجوع" },
         loading: { en: "Loading Data...", ar: "جاري تحميل البيانات..." },
         copy: { en: "Copy", ar: "نسخ" },
-        copied: { en: "Copied!", ar: "تم النسخ!" }
+        download: { en: "Download", ar: "تحميل" }
     };
     const _t = (key) => t[key][currentLang];
 
@@ -418,19 +441,49 @@
 
     function createCopyBtn(url) {
         const safeUrl = String(url).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        return `<button onclick="copyToClipboard(this, '${safeUrl}')" class="btn-copy"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> ${_t('copy')}</button>`;
+        return `<button onclick="copyToClipboard(this, '${safeUrl}')" class="btn-mini-action" title="${_t('copy')}"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>`;
+    }
+
+    function createDownloadBtn(url) {
+        const safeUrl = String(url).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `<button onclick="downloadImage(this, '${safeUrl}')" class="btn-mini-action" title="${_t('download')}"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>`;
     }
 
     function copyToClipboard(btn, text) {
         navigator.clipboard.writeText(text).then(() => {
             const originalHtml = btn.innerHTML;
-            btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> ${_t('copied')}`;
-            btn.classList.add('copied');
+            btn.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            btn.classList.add('success');
             setTimeout(() => {
                 btn.innerHTML = originalHtml;
-                btn.classList.remove('copied');
+                btn.classList.remove('success');
             }, 1500);
         }).catch(err => console.log(err));
+    }
+
+    async function downloadImage(btn, url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Network response was not ok");
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = url.split('/').pop().split('?')[0] || 'image.jpg';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(a);
+        } catch (e) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'image.jpg';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
     }
 
     async function selectRegion(region) {
@@ -536,7 +589,7 @@
             imgTag = `<img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon">`;
         }
 
-        let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a></p>` : '';
+        let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';
 
         return `
             ${imgTag}
@@ -587,7 +640,7 @@
             imgTag = `<img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon">`;
         }
 
-        let bannerUrlHtml = fixedUrl ? `<p style="margin-top: 8px;"><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a></p>` : '';
+        let bannerUrlHtml = fixedUrl ? `<p style="margin-top: 8px;"><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';
         let formattedTitle = formatFreeFireText(item.title || 'N/A');
 
         return `

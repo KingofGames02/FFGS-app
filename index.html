@@ -108,6 +108,10 @@
         .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; }
         .btn-outline:hover { background: var(--accent); border-color: var(--accent); }
 
+        .btn-copy { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: #fff; border-radius: 6px; padding: 3px 8px; cursor: pointer; margin-inline-start: 8px; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; transition: all 0.2s; font-weight: 600; }
+        .btn-copy:hover { background: rgba(255, 255, 255, 0.15); }
+        .btn-copy.copied { background: var(--green); color: var(--bg); border-color: var(--green); }
+
         .region-btn {
             padding: 10px 2px !important;
             font-size: clamp(10px, 3vw, 15px) !important;
@@ -296,7 +300,9 @@
         openLink: { en: "Open Link", ar: "فتح الرابط" },
         openImg: { en: "Open Image", ar: "فتح الصورة" },
         back: { en: "BACK", ar: "رجوع" },
-        loading: { en: "Loading Data...", ar: "جاري تحميل البيانات..." }
+        loading: { en: "Loading Data...", ar: "جاري تحميل البيانات..." },
+        copy: { en: "Copy", ar: "نسخ" },
+        copied: { en: "Copied!", ar: "تم النسخ!" }
     };
     const _t = (key) => t[key][currentLang];
 
@@ -410,6 +416,23 @@
         if(header) header.classList.toggle('open');
     }
 
+    function createCopyBtn(url) {
+        const safeUrl = String(url).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `<button onclick="copyToClipboard(this, '${safeUrl}')" class="btn-copy"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> ${_t('copy')}</button>`;
+    }
+
+    function copyToClipboard(btn, text) {
+        navigator.clipboard.writeText(text).then(() => {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> ${_t('copied')}`;
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('copied');
+            }, 1500);
+        }).catch(err => console.log(err));
+    }
+
     async function selectRegion(region) {
         currentRegion = region;
         currentGlobalLangIndex = 0;
@@ -418,6 +441,7 @@
         document.getElementById('langToggleBtn').classList.add('hidden');
         document.getElementById('regionView').classList.remove('hidden');
         document.getElementById('contentArea').classList.add('hidden');
+        document.getElementById('globalSwitchBtn').classList.add('hidden');
         document.getElementById('loader').style.display = 'block';
 
         const langs = regionLangs[region];
@@ -500,15 +524,16 @@
     function buildSplashInner(item, index, currentLangCode) {
         let redirectHtml = '';
         if (isValidUrl(item.sub_go_pos)) {
-            redirectHtml = `<p><strong>${_t('redirect')}</strong> <a href="${item.sub_go_pos.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+            let safeUrl = item.sub_go_pos.trim();
+            redirectHtml = `<p><strong>${_t('redirect')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
         }
 
         const fixedUrl = fixImageUrl(item.image_url);
         const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
         
-        let imgTag = `<img src="${fixedUrl}" alt="Splash" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
+        let imgTag = `<img src="${fixedUrl}" loading="lazy" alt="Splash" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
         if (!fixedUrl) {
-            imgTag = `<img src="${currentPlaceholder}" onclick="toggleCard(this)" alt="Available Soon">`;
+            imgTag = `<img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon">`;
         }
 
         let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a></p>` : '';
@@ -536,7 +561,8 @@
 
         if (item.desc && String(item.desc).trim() !== "" && String(item.desc).trim() !== "0") {
             if (isValidUrl(item.desc)) {
-                linkHtml += `<p><strong>${_t('link')}</strong> <a href="${item.desc.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+                let safeUrl = item.desc.trim();
+                linkHtml += `<p><strong>${_t('link')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
             } else {
                 let formattedDesc = formatFreeFireText(item.desc);
                 detailsHtml = `<p><strong>${_t('details')}</strong></p><div class="details-box">${makeLinkIfUrl(formattedDesc)}</div>`;
@@ -544,19 +570,21 @@
         }
 
         if (isValidUrl(item.link_url) && String(item.link_url).trim() !== String(item.desc).trim()) {
-            linkHtml += `<p><strong>${_t('link')}</strong> <a href="${item.link_url.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+            let safeUrl = item.link_url.trim();
+            linkHtml += `<p><strong>${_t('link')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
         }
 
         if (isValidUrl(item.sub_go_pos) && String(item.sub_go_pos).trim() !== String(item.desc).trim() && String(item.sub_go_pos).trim() !== String(item.link_url).trim()) {
-            linkHtml += `<p><strong>${_t('redirect')}</strong> <a href="${item.sub_go_pos.trim()}" target="_blank">${_t('openLink')}</a></p>`;
+            let safeUrl = item.sub_go_pos.trim();
+            linkHtml += `<p><strong>${_t('redirect')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
         }
 
         const fixedUrl = fixImageUrl(item.image_url);
         const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
 
-        let imgTag = `<img src="${fixedUrl}" alt="News" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
+        let imgTag = `<img src="${fixedUrl}" loading="lazy" alt="News" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
         if (!fixedUrl) {
-            imgTag = `<img src="${currentPlaceholder}" onclick="toggleCard(this)" alt="Available Soon">`;
+            imgTag = `<img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon">`;
         }
 
         let bannerUrlHtml = fixedUrl ? `<p style="margin-top: 8px;"><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a></p>` : '';

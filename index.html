@@ -422,7 +422,9 @@
 
     function formatFreeFireText(text) {
         if (!text) return "";
-        let formatted = String(text).replace(/\[([A-Fa-f0-9]{6})\]([\s\S]*?)\[-\]/g, '<span style="color: #$1; font-weight: bold;">$2</span>');
+        let formatted = String(text)
+            .replace(/\[([A-Fa-f0-9]{6})\]([\s\S]*?)\[-\]/g, '<span style="color: #$1; font-weight: bold;">$2</span>')
+            .replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>');
         return formatted;
     }
 
@@ -590,11 +592,12 @@
         }
 
         let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';
+        let formattedTitle = formatFreeFireText(item.name || 'N/A');
 
         return `
             ${imgTag}
             <div class="data-card-header" onclick="toggleCard(this)">
-                <p class="data-card-title">${item.name || 'N/A'}</p>
+                <p class="data-card-title">${formattedTitle}</p>
                 <span class="toggle-icon">▼</span>
             </div>
             <div class="data-card-details">

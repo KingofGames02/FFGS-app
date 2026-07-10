@@ -170,8 +170,72 @@
         .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
         
         .data-card { background-color: #1e293b; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .data-card img { width: 100%; height: auto; max-height: 350px; object-fit: contain; background-color: #0f172a; border-bottom: 1px solid var(--border); display: block; cursor: pointer; transition: opacity 0.3s; }
+        
+        .img-wrapper {
+            position: relative;
+            width: 100%;
+            background-color: #0f172a;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .img-wrapper.shimmer {
+            min-height: 200px;
+            background: #1e293b;
+            background-image: linear-gradient(to right, #1e293b 0%, #334155 20%, #1e293b 40%, #1e293b 100%);
+            background-repeat: no-repeat;
+            background-size: 800px 100%;
+            animation: placeholderShimmer 1.5s linear infinite forwards;
+        }
+
+        @keyframes placeholderShimmer {
+            0% { background-position: -468px 0; }
+            100% { background-position: 468px 0; }
+        }
+
+        .data-card img { 
+            width: 100%; 
+            height: auto; 
+            max-height: 350px; 
+            object-fit: contain; 
+            display: block; 
+            cursor: pointer; 
+            opacity: 0;
+            transition: opacity 0.3s ease-in;
+        }
+
+        .data-card img.loaded {
+            opacity: 1;
+        }
+
         .data-card img:hover { opacity: 0.85; }
+
+        .time-badge {
+            position: absolute;
+            top: 10px;
+            inset-inline-end: 10px;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            z-index: 2;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            letter-spacing: 0.5px;
+        }
+
+        .time-badge.upcoming {
+            color: #ffffff;
+        }
+
+        .time-badge.active {
+            color: var(--green);
+        }
         
         .data-card-header { padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #1e293b; border-bottom: 1px solid var(--border); }
         .data-card-header:hover { background: #334155; }
@@ -275,7 +339,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js?v=1.0.0').catch(error => {
+            navigator.serviceWorker.register('sw.js?v=1.0.1').catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
         });
@@ -532,6 +596,44 @@
         renderAllCards(langs[currentGlobalLangIndex]);
     }
 
+    function getTimeBadgeHtml(startTime, endTime) {
+        const now = Math.floor(Date.now() / 1000);
+        if (!startTime || !endTime) return '';
+
+        let diff = 0;
+        let status = '';
+
+        if (now < startTime) {
+            diff = startTime - now;
+            status = 'upcoming';
+        } else if (now >= startTime && now < endTime) {
+            diff = endTime - now;
+            status = 'active';
+        } else {
+            return '';
+        }
+
+        const days = Math.floor(diff / 86400);
+        const hours = Math.floor((diff % 86400) / 3600);
+        const minutes = Math.floor((diff % 3600) / 60);
+
+        let timeString = '';
+        if (days > 0) {
+            timeString = `${days}d ${hours}h`;
+        } else {
+            timeString = `${hours}h ${minutes}m`;
+        }
+
+        let text = '';
+        if (status === 'upcoming') {
+            text = currentLang === 'ar' ? `يبدأ خلال ${timeString}` : `Starts in ${timeString}`;
+        } else {
+            text = currentLang === 'ar' ? `متبقي ${timeString}` : `${timeString} left`;
+        }
+
+        return `<div class="time-badge ${status}">${text}</div>`;
+    }
+
     async function renderAllCards(targetLang) {
         const data = await cache[currentRegion][targetLang];
         
@@ -585,10 +687,24 @@
 
         const fixedUrl = fixImageUrl(item.image_url);
         const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
+        const badgeHtml = getTimeBadgeHtml(item.start_time, item.end_time);
         
-        let imgTag = `<img src="${fixedUrl}" loading="lazy" alt="Splash" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
+        let imgTag = `
+            <div class="img-wrapper shimmer">
+                ${badgeHtml}
+                <img src="${fixedUrl}" loading="lazy" alt="Splash" onclick="toggleCard(this)" 
+                     onload="this.classList.add('loaded'); this.parentElement.classList.remove('shimmer');" 
+                     onerror="this.onerror=null; this.src='${currentPlaceholder}';">
+            </div>
+        `;
+        
         if (!fixedUrl) {
-            imgTag = `<img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon">`;
+            imgTag = `
+                <div class="img-wrapper shimmer">
+                    <img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon"
+                         onload="this.classList.add('loaded'); this.parentElement.classList.remove('shimmer');">
+                </div>
+            `;
         }
 
         let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';
@@ -637,10 +753,24 @@
 
         const fixedUrl = fixImageUrl(item.image_url);
         const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
+        const badgeHtml = getTimeBadgeHtml(item.start_time, item.end_time);
 
-        let imgTag = `<img src="${fixedUrl}" loading="lazy" alt="News" onclick="toggleCard(this)" onerror="this.onerror=null; this.src='${currentPlaceholder}';">`;
+        let imgTag = `
+            <div class="img-wrapper shimmer">
+                ${badgeHtml}
+                <img src="${fixedUrl}" loading="lazy" alt="News" onclick="toggleCard(this)" 
+                     onload="this.classList.add('loaded'); this.parentElement.classList.remove('shimmer');" 
+                     onerror="this.onerror=null; this.src='${currentPlaceholder}';">
+            </div>
+        `;
+
         if (!fixedUrl) {
-            imgTag = `<img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon">`;
+            imgTag = `
+                <div class="img-wrapper shimmer">
+                    <img src="${currentPlaceholder}" loading="lazy" onclick="toggleCard(this)" alt="Available Soon"
+                         onload="this.classList.add('loaded'); this.parentElement.classList.remove('shimmer');">
+                </div>
+            `;
         }
 
         let bannerUrlHtml = fixedUrl ? `<p style="margin-top: 8px;"><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';

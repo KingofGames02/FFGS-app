@@ -339,13 +339,13 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js?v=1.0.1').catch(error => {
+            navigator.serviceWorker.register('sw.js?v=1.0.2').catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
         });
     }
 
-    const API_BASE = "https://kog-ff-events.vercel.app/api/splash";
+    const API_BASE = "https://kog-api-gateway.vercel.app/api/events";
     const regions = ['PK', 'IND', 'BR', 'ME', 'NA', 'VN', 'ID', 'SG', 'BD', 'TW', 'TH', 'CIS', 'EU', 'SAC', 'US'];
     
     const regionLangs = {

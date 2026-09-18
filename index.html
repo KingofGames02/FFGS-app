@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#040d1f">
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async defer></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
@@ -341,7 +341,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js?v=1.0.1').catch(error => {
+            navigator.serviceWorker.register('sw.js?v=1.0.2').catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
         });
@@ -396,16 +396,22 @@
     };
     const _t = (key) => t[key][currentLang];
 
-    window.onloadTurnstileCallback = function() {
-        turnstileWidgetId = turnstile.render('#cf-turnstile-widget', {
-            sitekey: '0x4AAAAAAE7oOmtjRzm_E2Gq',
-            theme: 'dark'
-        });
-    };
+    function initTurnstile() {
+        if (typeof turnstile !== 'undefined' && turnstileWidgetId === null) {
+            try {
+                turnstileWidgetId = turnstile.render('#cf-turnstile-widget', {
+                    sitekey: '0x4AAAAAAE7oOmtjRzm_E2Gq',
+                    theme: 'dark'
+                });
+            } catch (e) {}
+        }
+    }
 
     window.onload = () => {
         detectLanguage();
         applyTranslations();
+        
+        setTimeout(initTurnstile, 500);
         
         const grid = document.getElementById('regionGrid');
         regions.forEach(region => {
@@ -457,42 +463,53 @@
         currentRegion = null;
     }
 
-    function fetchRegionData(region) {
+    async function fetchRegionData(region) {
         if (cache[region]) {
-            return Promise.resolve(cache[region]);
-        }
-        
-        let cfToken = null;
-        if (turnstileWidgetId !== null) {
-            cfToken = turnstile.getResponse(turnstileWidgetId);
-        }
-        
-        if (!cfToken) {
-            alert(currentLang === 'ar' ? "يرجى الانتظار قليلاً للتحقق الأمني..." : "Please wait for security check...");
-            return Promise.resolve(null);
+            return cache[region];
         }
 
-        return fetch(`${API_BASE}/${region}`, {
-            headers: {
-                'X-Turnstile-Token': cfToken
+        initTurnstile();
+        
+        let cfToken = null;
+        let attempts = 0;
+        
+        while (attempts < 15 && !cfToken) {
+            if (turnstileWidgetId !== null) {
+                try {
+                    cfToken = turnstile.getResponse(turnstileWidgetId);
+                } catch (e) {}
             }
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.ok) {
-                    cache[region] = data;
+            if (!cfToken) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+        }
+
+        if (!cfToken) {
+            alert(currentLang === 'ar' ? "فشل التحقق الأمني، يرجى إعادة تحميل الصفحة." : "Security verification failed, please reload the page.");
+            return null;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/${region}`, {
+                headers: {
+                    'X-Turnstile-Token': cfToken
                 }
-                if (turnstileWidgetId !== null) {
-                    turnstile.reset(turnstileWidgetId);
-                }
-                return data;
-            })
-            .catch(err => {
-                if (turnstileWidgetId !== null) {
-                    turnstile.reset(turnstileWidgetId);
-                }
-                return null;
             });
+            const data = await res.json();
+            if (data && data.ok) {
+                cache[region] = data;
+            }
+            if (turnstileWidgetId !== null) {
+                try { turnstile.reset(turnstileWidgetId); } catch(e) {}
+            }
+            return data;
+        } catch (err) {
+            if (turnstileWidgetId !== null) {
+                try { turnstile.reset(turnstileWidgetId); } catch(e) {}
+            }
+            return null;
+        }
     }
 
     function formatTimestamp(ts) {

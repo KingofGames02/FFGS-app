@@ -261,7 +261,7 @@
     </style>
 </head>
 <body>
-    <div id="cf-turnstile-widget" style="display: none;"></div>
+    <div id="cf-turnstile-widget"></div>
 
     <div class="header-container">
         <h1 class="main-title fit-container"><span class="fit-text" data-en="FF Events & Updates" data-ar="أحداث وتحديثات فري فاير">FF Events & Updates</span></h1>
@@ -376,6 +376,7 @@
     const placeholderImageAr = "https://i.ibb.co/8DfkBqDr/Coming-Soon-ar.png";
     let currentLang = 'en';
     let turnstileWidgetId = null;
+    let currentCfToken = null;
 
     const t = {
         splash: { en: "Splash Banners", ar: "صور البداية (Splash)" },
@@ -401,7 +402,17 @@
             try {
                 turnstileWidgetId = turnstile.render('#cf-turnstile-widget', {
                     sitekey: '0x4AAAAAAE7oOmtjRzm_E2Gq',
-                    theme: 'dark'
+                    theme: 'dark',
+                    callback: function(token) {
+                        currentCfToken = token;
+                    },
+                    'expired-callback': function() {
+                        currentCfToken = null;
+                        turnstile.reset(turnstileWidgetId);
+                    },
+                    'error-callback': function() {
+                        currentCfToken = null;
+                    }
                 });
             } catch (e) {}
         }
@@ -468,46 +479,37 @@
             return cache[region];
         }
 
-        initTurnstile();
-        
-        let cfToken = null;
-        let attempts = 0;
-        
-        while (attempts < 15 && !cfToken) {
-            if (turnstileWidgetId !== null) {
-                try {
-                    cfToken = turnstile.getResponse(turnstileWidgetId);
-                } catch (e) {}
-            }
-            if (!cfToken) {
+        if (!currentCfToken) {
+            let attempts = 0;
+            while (!currentCfToken && attempts < 15) {
                 await new Promise(r => setTimeout(r, 200));
                 attempts++;
             }
         }
 
-        if (!cfToken) {
-            alert(currentLang === 'ar' ? "فشل التحقق الأمني، يرجى إعادة تحميل الصفحة." : "Security verification failed, please reload the page.");
+        if (!currentCfToken) {
+            alert(currentLang === 'ar' ? "جاري تجهيز التحقق الأمني، جرب مجدداً بعد ثانية." : "Security verification preparing, try again in a second.");
             return null;
+        }
+
+        const tokenToUse = currentCfToken;
+        currentCfToken = null;
+        if (turnstileWidgetId !== null) {
+            try { turnstile.reset(turnstileWidgetId); } catch(e) {}
         }
 
         try {
             const res = await fetch(`${API_BASE}/${region}`, {
                 headers: {
-                    'X-Turnstile-Token': cfToken
+                    'X-Turnstile-Token': tokenToUse
                 }
             });
             const data = await res.json();
             if (data && data.ok) {
                 cache[region] = data;
             }
-            if (turnstileWidgetId !== null) {
-                try { turnstile.reset(turnstileWidgetId); } catch(e) {}
-            }
             return data;
         } catch (err) {
-            if (turnstileWidgetId !== null) {
-                try { turnstile.reset(turnstileWidgetId); } catch(e) {}
-            }
             return null;
         }
     }

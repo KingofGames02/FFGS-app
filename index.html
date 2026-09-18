@@ -9,6 +9,7 @@
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#040d1f">
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
@@ -260,6 +261,7 @@
     </style>
 </head>
 <body>
+    <div id="cf-turnstile-widget" style="display: none;"></div>
 
     <div class="header-container">
         <h1 class="main-title fit-container"><span class="fit-text" data-en="FF Events & Updates" data-ar="أحداث وتحديثات فري فاير">FF Events & Updates</span></h1>
@@ -345,7 +347,7 @@
         });
     }
 
-    const API_BASE = "https://kog-api-gateway.vercel.app/api/events";
+    const API_BASE = "https://kog-api-gateway-v2.vercel.app/api/events";
     const regions = ['PK', 'IND', 'BR', 'ME', 'NA', 'VN', 'ID', 'SG', 'BD', 'TW', 'TH', 'CIS', 'EU', 'SAC', 'US'];
     
     const regionLangs = {
@@ -373,6 +375,7 @@
     const placeholderImageEn = "https://i.ibb.co/XZGm5Z0h/Coming-Soon-en.png";
     const placeholderImageAr = "https://i.ibb.co/8DfkBqDr/Coming-Soon-ar.png";
     let currentLang = 'en';
+    let turnstileWidgetId = null;
 
     const t = {
         splash: { en: "Splash Banners", ar: "صور البداية (Splash)" },
@@ -393,9 +396,20 @@
     };
     const _t = (key) => t[key][currentLang];
 
+    function initTurnstile() {
+        if (typeof turnstile !== 'undefined') {
+            turnstileWidgetId = turnstile.render('#cf-turnstile-widget', {
+                sitekey: '0x4AAAAAAE7oOmtjRzm_E2Gq',
+                theme: 'dark'
+            });
+        }
+    }
+
     window.onload = () => {
         detectLanguage();
         applyTranslations();
+        initTurnstile();
+        
         const grid = document.getElementById('regionGrid');
         regions.forEach(region => {
             const btn = document.createElement('button');
@@ -451,15 +465,37 @@
             return Promise.resolve(cache[region]);
         }
         
-        return fetch(`${API_BASE}/${region}`)
+        let cfToken = null;
+        if (turnstileWidgetId !== null) {
+            cfToken = turnstile.getResponse(turnstileWidgetId);
+        }
+        
+        if (!cfToken) {
+            alert(currentLang === 'ar' ? "يرجى الانتظار قليلاً للتحقق الأمني..." : "Please wait for security check...");
+            return Promise.resolve(null);
+        }
+
+        return fetch(`${API_BASE}/${region}`, {
+            headers: {
+                'X-Turnstile-Token': cfToken
+            }
+        })
             .then(res => res.json())
             .then(data => {
                 if (data && data.ok) {
                     cache[region] = data;
                 }
+                if (turnstileWidgetId !== null) {
+                    turnstile.reset(turnstileWidgetId);
+                }
                 return data;
             })
-            .catch(err => null);
+            .catch(err => {
+                if (turnstileWidgetId !== null) {
+                    turnstile.reset(turnstileWidgetId);
+                }
+                return null;
+            });
     }
 
     function formatTimestamp(ts) {
@@ -571,7 +607,13 @@
         document.getElementById('globalSwitchBtn').classList.add('hidden');
         document.getElementById('loader').style.display = 'block';
 
-        await fetchRegionData(region);
+        const fetched = await fetchRegionData(region);
+        
+        if (!fetched) {
+            document.getElementById('loader').style.display = 'none';
+            goBack();
+            return;
+        }
 
         const langs = regionLangs[region];
         const globalBtn = document.getElementById('globalSwitchBtn');

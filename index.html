@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#040d1f">
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onloadTurnstileCallback" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
@@ -396,19 +396,16 @@
     };
     const _t = (key) => t[key][currentLang];
 
-    function initTurnstile() {
-        if (typeof turnstile !== 'undefined') {
-            turnstileWidgetId = turnstile.render('#cf-turnstile-widget', {
-                sitekey: '0x4AAAAAAE7oOmtjRzm_E2Gq',
-                theme: 'dark'
-            });
-        }
-    }
+    window.onloadTurnstileCallback = function() {
+        turnstileWidgetId = turnstile.render('#cf-turnstile-widget', {
+            sitekey: '0x4AAAAAAE7oOmtjRzm_E2Gq',
+            theme: 'dark'
+        });
+    };
 
     window.onload = () => {
         detectLanguage();
         applyTranslations();
-        initTurnstile();
         
         const grid = document.getElementById('regionGrid');
         regions.forEach(region => {

@@ -339,7 +339,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js?v=1.0.0').catch(error => {
+            navigator.serviceWorker.register('sw.js?v=1.0.1').catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
         });
@@ -446,20 +446,20 @@
         currentRegion = null;
     }
 
-    function fetchApi(region, lang) {
-        if (!cache[region]) cache[region] = {};
-        if (cache[region][lang]) return cache[region][lang];
+    function fetchRegionData(region) {
+        if (cache[region]) {
+            return Promise.resolve(cache[region]);
+        }
         
-        const promise = fetch(`${API_BASE}/${region}?lang=${lang}`)
+        return fetch(`${API_BASE}/${region}`)
             .then(res => res.json())
             .then(data => {
-                cache[region][lang] = data;
+                if (data && data.ok) {
+                    cache[region] = data;
+                }
                 return data;
             })
             .catch(err => null);
-            
-        cache[region][lang] = promise;
-        return promise;
     }
 
     function formatTimestamp(ts) {
@@ -571,24 +571,20 @@
         document.getElementById('globalSwitchBtn').classList.add('hidden');
         document.getElementById('loader').style.display = 'block';
 
-        const langs = regionLangs[region];
-        
-        await fetchApi(region, langs[0]);
+        await fetchRegionData(region);
 
+        const langs = regionLangs[region];
         const globalBtn = document.getElementById('globalSwitchBtn');
-        if (langs.length > 1) {
+        if (langs && langs.length > 1) {
             globalBtn.classList.remove('hidden');
             updateGlobalButtonText();
-            
-            setTimeout(() => {
-                langs.slice(1).forEach(l => fetchApi(region, l));
-            }, 1000);
         } else {
             globalBtn.classList.add('hidden');
         }
 
         document.getElementById('loader').style.display = 'none';
-        await renderAllCards(langs[0]);
+        const targetLang = langs ? langs[0] : 'en';
+        await renderAllCards(targetLang);
         document.getElementById('contentArea').classList.remove('hidden');
     }
 
@@ -603,7 +599,7 @@
 
     async function toggleGlobalLang() {
         const langs = regionLangs[currentRegion];
-        if (langs.length <= 1) return;
+        if (!langs || langs.length <= 1) return;
         currentGlobalLangIndex = (currentGlobalLangIndex + 1) % langs.length;
         updateGlobalButtonText();
         
@@ -655,7 +651,7 @@
     }
 
     async function renderAllCards(targetLang) {
-        let data = await fetchApi(currentRegion, targetLang);
+        const regionData = cache[currentRegion];
         
         const splashGrid = document.getElementById('splashGrid');
         const newsGrid = document.getElementById('newsGrid');
@@ -665,15 +661,19 @@
         splashGrid.innerHTML = '';
         newsGrid.innerHTML = '';
 
-        if (!data || !data.ok) {
+        if (!regionData || !regionData.ok || !regionData.data || !regionData.data[targetLang]) {
             splashTitle.style.display = 'none';
             newsTitle.style.display = 'none';
             return;
         }
 
-        if (data.events && data.events.length > 0) {
+        const langData = regionData.data[targetLang];
+        const events = langData.events || [];
+        const updates = langData.updates || [];
+
+        if (events.length > 0) {
             splashTitle.style.display = 'block';
-            data.events.forEach((item, index) => {
+            events.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'data-card';
                 card.id = `splash-card-${index}`;
@@ -684,9 +684,9 @@
             splashTitle.style.display = 'none';
         }
 
-        if (data.updates && data.updates.length > 0) {
+        if (updates.length > 0) {
             newsTitle.style.display = 'block';
-            data.updates.forEach((item, index) => {
+            updates.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'data-card';
                 card.id = `news-card-${index}`;

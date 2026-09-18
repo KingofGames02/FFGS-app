@@ -339,7 +339,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js?v=1.0.2').catch(error => {
+            navigator.serviceWorker.register('sw.js?v=1.0.0').catch(error => {
                 console.log('ServiceWorker registration failed: ', error);
             });
         });
@@ -452,6 +452,10 @@
         
         const promise = fetch(`${API_BASE}/${region}?lang=${lang}`)
             .then(res => res.json())
+            .then(data => {
+                cache[region][lang] = data;
+                return data;
+            })
             .catch(err => null);
             
         cache[region][lang] = promise;
@@ -494,7 +498,11 @@
 
     function fixImageUrl(url) {
         if (!url) return "";
-        return url.trim().replace(/\.ff_extend$/i, '.jpg');
+        let fixed = url.trim();
+        if (fixed && !fixed.startsWith('http')) {
+            fixed = "https://dl.dir.freefiremobile.com/common/" + fixed;
+        }
+        return fixed.replace(/\.ff_extend$/i, '.jpg');
     }
 
     function toggleCard(element) {
@@ -564,12 +572,17 @@
         document.getElementById('loader').style.display = 'block';
 
         const langs = regionLangs[region];
-        await Promise.all(langs.map(l => fetchApi(region, l)));
+        
+        await fetchApi(region, langs[0]);
 
         const globalBtn = document.getElementById('globalSwitchBtn');
         if (langs.length > 1) {
             globalBtn.classList.remove('hidden');
             updateGlobalButtonText();
+            
+            setTimeout(() => {
+                langs.slice(1).forEach(l => fetchApi(region, l));
+            }, 1000);
         } else {
             globalBtn.classList.add('hidden');
         }
@@ -588,12 +601,19 @@
         `;
     }
 
-    function toggleGlobalLang() {
+    async function toggleGlobalLang() {
         const langs = regionLangs[currentRegion];
         if (langs.length <= 1) return;
         currentGlobalLangIndex = (currentGlobalLangIndex + 1) % langs.length;
         updateGlobalButtonText();
-        renderAllCards(langs[currentGlobalLangIndex]);
+        
+        document.getElementById('contentArea').classList.add('hidden');
+        document.getElementById('loader').style.display = 'block';
+        
+        await renderAllCards(langs[currentGlobalLangIndex]);
+        
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('contentArea').classList.remove('hidden');
     }
 
     function getTimeBadgeHtml(startTime, endTime) {
@@ -635,7 +655,7 @@
     }
 
     async function renderAllCards(targetLang) {
-        const data = await cache[currentRegion][targetLang];
+        let data = await fetchApi(currentRegion, targetLang);
         
         const splashGrid = document.getElementById('splashGrid');
         const newsGrid = document.getElementById('newsGrid');
@@ -645,15 +665,15 @@
         splashGrid.innerHTML = '';
         newsGrid.innerHTML = '';
 
-        if (!data || !data.success) {
+        if (!data || !data.ok) {
             splashTitle.style.display = 'none';
             newsTitle.style.display = 'none';
             return;
         }
 
-        if (data.splash_data && data.splash_data.length > 0) {
+        if (data.events && data.events.length > 0) {
             splashTitle.style.display = 'block';
-            data.splash_data.forEach((item, index) => {
+            data.events.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'data-card';
                 card.id = `splash-card-${index}`;
@@ -664,9 +684,9 @@
             splashTitle.style.display = 'none';
         }
 
-        if (data.news_data && data.news_data.length > 0) {
+        if (data.updates && data.updates.length > 0) {
             newsTitle.style.display = 'block';
-            data.news_data.forEach((item, index) => {
+            data.updates.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.className = 'data-card';
                 card.id = `news-card-${index}`;
@@ -680,14 +700,14 @@
 
     function buildSplashInner(item, index, currentLangCode) {
         let redirectHtml = '';
-        if (isValidUrl(item.sub_go_pos)) {
-            let safeUrl = item.sub_go_pos.trim();
+        if (isValidUrl(item.Link)) {
+            let safeUrl = item.Link.trim();
             redirectHtml = `<p><strong>${_t('redirect')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
         }
 
-        const fixedUrl = fixImageUrl(item.image_url);
+        const fixedUrl = fixImageUrl(item.Banner);
         const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
-        const badgeHtml = getTimeBadgeHtml(item.start_time, item.end_time);
+        const badgeHtml = getTimeBadgeHtml(item.StartTs, item.EndTs);
         
         let imgTag = `
             <div class="img-wrapper shimmer">
@@ -708,7 +728,7 @@
         }
 
         let bannerUrlHtml = fixedUrl ? `<p><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';
-        let formattedTitle = formatFreeFireText(item.name || 'N/A');
+        let formattedTitle = formatFreeFireText(item.Title || 'N/A');
 
         return `
             ${imgTag}
@@ -718,8 +738,8 @@
             </div>
             <div class="data-card-details">
                 <div class="data-card-info">
-                    <p><strong>${_t('start')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.start_time)}</span></p>
-                    <p><strong>${_t('end')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.end_time)}</span></p>
+                    <p><strong>${_t('start')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.StartTs)}</span></p>
+                    <p><strong>${_t('end')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.EndTs)}</span></p>
                     ${bannerUrlHtml}
                     ${redirectHtml}
                 </div>
@@ -731,29 +751,24 @@
         let detailsHtml = '';
         let linkHtml = '';
 
-        if (item.desc && String(item.desc).trim() !== "" && String(item.desc).trim() !== "0") {
-            if (isValidUrl(item.desc)) {
-                let safeUrl = item.desc.trim();
+        if (item.Details && String(item.Details).trim() !== "" && String(item.Details).trim() !== "0") {
+            if (isValidUrl(item.Details)) {
+                let safeUrl = item.Details.trim();
                 linkHtml += `<p><strong>${_t('link')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
             } else {
-                let formattedDesc = formatFreeFireText(item.desc);
+                let formattedDesc = formatFreeFireText(item.Details);
                 detailsHtml = `<p><strong>${_t('details')}</strong></p><div class="details-box">${makeLinkIfUrl(formattedDesc)}</div>`;
             }
         }
 
-        if (isValidUrl(item.link_url) && String(item.link_url).trim() !== String(item.desc).trim()) {
-            let safeUrl = item.link_url.trim();
+        if (isValidUrl(item.Link) && String(item.Link).trim() !== String(item.Details).trim()) {
+            let safeUrl = item.Link.trim();
             linkHtml += `<p><strong>${_t('link')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
         }
 
-        if (isValidUrl(item.sub_go_pos) && String(item.sub_go_pos).trim() !== String(item.desc).trim() && String(item.sub_go_pos).trim() !== String(item.link_url).trim()) {
-            let safeUrl = item.sub_go_pos.trim();
-            linkHtml += `<p><strong>${_t('redirect')}</strong> <a href="${safeUrl}" target="_blank">${_t('openLink')}</a> ${createCopyBtn(safeUrl)}</p>`;
-        }
-
-        const fixedUrl = fixImageUrl(item.image_url);
+        const fixedUrl = fixImageUrl(item.Banner);
         const currentPlaceholder = currentLang === 'ar' ? placeholderImageAr : placeholderImageEn;
-        const badgeHtml = getTimeBadgeHtml(item.start_time, item.end_time);
+        const badgeHtml = getTimeBadgeHtml(item.StartTs, item.EndTs);
 
         let imgTag = `
             <div class="img-wrapper shimmer">
@@ -774,7 +789,7 @@
         }
 
         let bannerUrlHtml = fixedUrl ? `<p style="margin-top: 8px;"><strong>${_t('bannerUrl')}</strong> <a href="${fixedUrl}" target="_blank">${_t('openImg')}</a> ${createDownloadBtn(fixedUrl)}</p>` : '';
-        let formattedTitle = formatFreeFireText(item.title || 'N/A');
+        let formattedTitle = formatFreeFireText(item.Title || 'N/A');
 
         return `
             ${imgTag}
@@ -784,8 +799,8 @@
             </div>
             <div class="data-card-details">
                 <div class="data-card-info">
-                    <p><strong>${_t('start')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.start_time)}</span></p>
-                    <p><strong>${_t('end')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.end_time)}</span></p>
+                    <p><strong>${_t('start')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.StartTs)}</span></p>
+                    <p><strong>${_t('end')}</strong> <span style="display:inline-block; direction:ltr;">${formatTimestamp(item.EndTs)}</span></p>
                     ${detailsHtml}
                     ${linkHtml}
                     ${bannerUrlHtml}
